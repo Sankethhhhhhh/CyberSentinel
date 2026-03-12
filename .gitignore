@@ -1,0 +1,19 @@
+# ML models
+backend/models/sms_model/
+*.safetensors
+*.pt
+*.bin
+
+# datasets
+data/
+datasets/
+
+# python cache
+__pycache__/
+*.pyc
+
+# node modules
+frontend/node_modules/
+
+# env files
+.env
