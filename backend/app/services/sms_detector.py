@@ -6,9 +6,15 @@ import numpy as np
 class SMIShingDetector:
     def __init__(self):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model_name = "distilbert-base-uncased"
-        
-        print(f"Loading SMS model '{self.model_name}' from HuggingFace...")
+        # Use local model path if it exists, otherwise fallback to HuggingFace
+        local_model_path = os.path.join(os.path.dirname(__file__), "../../models/sms_model")
+        if os.path.exists(local_model_path):
+            self.model_name = local_model_path
+            print(f"Loading local SMS model from '{self.model_name}'...")
+        else:
+            self.model_name = "distilbert-base-uncased"
+            print(f"Loading SMS model '{self.model_name}' from HuggingFace...")
+            
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         # Using 2 labels for spam vs ham
         self.model = AutoModelForSequenceClassification.from_pretrained(self.model_name, num_labels=2)

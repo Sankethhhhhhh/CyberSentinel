@@ -11,7 +11,7 @@ class URLDetector:
 
         self.model_path = os.path.join(
             os.path.dirname(__file__),
-            "../../models/url_model.pkl"
+            "../../models/url_models/best_url_model.pkl"
         )
 
         self.best_model = None
