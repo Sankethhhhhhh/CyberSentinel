@@ -1,27 +1,53 @@
-# Node
-node_modules/
-frontend/node_modules/
-package-lock.json
-
+# =========================
 # Python
+# =========================
 venv/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+*.log
 
-# ML models
-backend/models/sms_model/
-*.safetensors
-*.pt
-*.bin
-*.pkl
+# =========================
+# Environment Variables
+# =========================
+.env
 
-# Data
+# =========================
+# Node / Frontend
+# =========================
+node_modules/
+frontend/node_modules/
+dist/
+build/
+
+# =========================
+# ML Models (ignore all)
+# =========================
+backend/models/
+
+# Allow ONLY required models
+!backend/models/
+!backend/models/url_models/
+!backend/models/url_models/best_url_model.pkl
+
+!backend/models/sms_model/
+!backend/models/sms_model/best_sms_pipeline.pkl
+
+# =========================
+# Data / Datasets
+# =========================
 data/
 datasets/
 
-# Env
-.env
-
-# OS
+# =========================
+# OS / Misc
+# =========================
 .DS_Store
 Thumbs.db
+
+# =========================
+# Optional (logs / temp)
+# =========================
+*.tmp
+*.cache
