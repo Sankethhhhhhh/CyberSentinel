@@ -1,19 +1,27 @@
+# Node
+node_modules/
+frontend/node_modules/
+package-lock.json
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
 # ML models
 backend/models/sms_model/
 *.safetensors
 *.pt
 *.bin
+*.pkl
 
-# datasets
+# Data
 data/
 datasets/
 
-# python cache
-__pycache__/
-*.pyc
-
-# node modules
-frontend/node_modules/
-
-# env files
+# Env
 .env
+
+# OS
+.DS_Store
+Thumbs.db

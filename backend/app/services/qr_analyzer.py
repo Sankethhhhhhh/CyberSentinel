@@ -2,7 +2,7 @@ import io
 import os
 from PIL import Image
 from pyzbar.pyzbar import decode
-from backend.app.services.url_detector import URLDetector
+from app.services.url_detector import URLDetector
 
 class QRAnalyzer:
     def __init__(self):

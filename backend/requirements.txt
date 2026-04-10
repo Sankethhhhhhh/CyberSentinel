@@ -21,3 +21,4 @@ qrcode
 pillow
 python-magic
 tldextract
+lightgbm

@@ -1,42 +1,16 @@
 import pandas as pd
-import torch
 import numpy as np
-from torch.utils.data import Dataset
-from transformers import (
-    DistilBertTokenizer, 
-    DistilBertForSequenceClassification, 
-    Trainer, 
-    TrainingArguments,
-    EarlyStoppingCallback
-)
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 import os
+import sys
+import joblib
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, accuracy_score, confusion_matrix, recall_score
+from sklearn.pipeline import Pipeline
 
-class SMSDataset(Dataset):
-    def __init__(self, encodings, labels):
-        self.encodings = encodings
-        self.labels = labels
-
-    def __getitem__(self, idx):
-        item = {key: torch.tensor(val[idx]) for key, val in self.encodings.items()}
-        item['labels'] = torch.tensor(self.labels[idx])
-        return item
-
-    def __len__(self):
-        return len(self.labels)
-
-def compute_metrics(pred):
-    labels = pred.label_ids
-    preds = pred.predictions.argmax(-1)
-    precision, recall, f1, _ = precision_recall_fscore_support(labels, preds, average='binary')
-    acc = accuracy_score(labels, preds)
-    return {
-        'accuracy': acc,
-        'f1': f1,
-        'precision': precision,
-        'recall': recall
-    }
+# Add the app directory to sys.path to import the feature engineering module
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from app.services.feature_engineering import SMSPipelineTransformer
 
 def train_sms_model():
     # 1. Load dataset
@@ -48,69 +22,60 @@ def train_sms_model():
     print(f"Loading dataset from {csv_path}...")
     df = pd.read_csv(csv_path)
     
-    # 2. Convert labels: ham -> 0, spam -> 1
+    # 2. Check Class Imbalance
+    print("\n--- Class Imbalance Check ---")
+    print(df['label'].value_counts())
+    print("-----------------------------\n")
+
+    # Convert labels: ham -> 0, spam -> 1
     df['label_num'] = df['label'].map({'ham': 0, 'spam': 1})
+    df = df.dropna(subset=['message'])
+
+    X = df['message'].values
+    y = df['label_num'].values
 
     # 3. Split dataset
-    train_texts, val_texts, train_labels, val_labels = train_test_split(
-        df['message'].tolist(), df['label_num'].tolist(), test_size=0.2, random_state=42
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
     )
 
-    # 4. Use HuggingFace Transformers
-    model_name = "distilbert-base-uncased"
-    tokenizer = DistilBertTokenizer.from_pretrained(model_name)
+    # 4. Define and Train full Pipeline
+    print("Initializing SMS Phishing Pipeline...")
+    pipeline = Pipeline([
+        ('transformer', SMSPipelineTransformer()),
+        ('classifier', RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1, class_weight="balanced"))
+    ])
 
-    # 5. Tokenize messages properly
-    train_encodings = tokenizer(train_texts, truncation=True, padding=True, max_length=128)
-    val_encodings = tokenizer(val_texts, truncation=True, padding=True, max_length=128)
+    print("Training the pipeline on SMS data...")
+    pipeline.fit(X_train, y_train)
 
-    train_dataset = SMSDataset(train_encodings, train_labels)
-    val_dataset = SMSDataset(val_encodings, val_labels)
+    # 5. Evaluate
+    print("\nEvaluating model (Threshold = 0.5 default)...")
+    y_pred = pipeline.predict(X_test)
+    y_proba = pipeline.predict_proba(X_test)[:, 1]
+    
+    # Custom threshold evaluation (0.35)
+    y_pred_tuned = (y_proba > 0.35).astype(int)
+    
+    print(f"Initial Accuracy (0.5): {accuracy_score(y_test, y_pred):.4f}")
+    print(f"Tuned Recall (0.35): {recall_score(y_test, y_pred_tuned):.4f}")
+    
+    print("\nClassification Report (Tuned 0.35 Threshold):")
+    print(classification_report(y_test, y_pred_tuned))
 
-    # 6. Training configuration
-    training_args = TrainingArguments(
-        output_dir='./results',          # temporary output folder
-        num_train_epochs=3,              # 3 epochs
-        per_device_train_batch_size=16,  # batch size 16
-        per_device_eval_batch_size=16,
-        warmup_steps=100,
-        weight_decay=0.01,
-        logging_dir='./logs',
-        logging_steps=10,
-        eval_strategy="epoch",      # evaluate at each epoch
-        save_strategy="epoch",
-        load_best_model_at_end=True,     # required for EarlyStopping
-        metric_for_best_model='f1',
-    )
-
-    model = DistilBertForSequenceClassification.from_pretrained(model_name, num_labels=2)
-
-    # 7. Add early stopping
-    trainer = Trainer(
-        model=model,
-        args=training_args,
-        train_dataset=train_dataset,
-        eval_dataset=val_dataset,
-        compute_metrics=compute_metrics,
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=1)]
-    )
-
-    print("Starting fine-tuning...")
-    trainer.train()
-
-    # 8. Evaluate
-    print("\nFinal Evaluation Metrics:")
-    eval_results = trainer.evaluate()
-    for key, value in eval_results.items():
-        print(f"{key}: {value:.4f}")
-
-    # 9. Save the trained model and tokenizer
+    # 6. Save the FULL pipeline
     save_path = os.path.join(os.path.dirname(__file__), '../models/sms_model')
     os.makedirs(save_path, exist_ok=True)
     
-    model.save_pretrained(save_path)
-    tokenizer.save_pretrained(save_path)
-    print(f"Fine-tuned model and tokenizer saved to {save_path}")
+    pipeline_file = os.path.join(save_path, 'best_sms_pipeline.pkl')
+    joblib.dump(pipeline, pipeline_file)
+    
+    # Also save the old format for backward compatibility temporarily if needed, 
+    # but the user requested saving the full pipeline.
+    # We'll just stick to the full pipeline as requested.
+
+    print(f"\nSUCCESS: Full SMS pipeline saved to {pipeline_file}")
+    print("This includes: Preprocessing + TF-IDF Vectorizer + RandomForestModel")
 
 if __name__ == "__main__":
     try:

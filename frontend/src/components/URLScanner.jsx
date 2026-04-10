@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Search, Shield, AlertTriangle } from 'lucide-react';
 import RiskMeter from './RiskMeter';
+import { calculateRisk } from '../utils/risk';
 
 const URLScanner = ({ updateStats, updateThreatFeed }) => {
 
@@ -9,30 +10,21 @@ const URLScanner = ({ updateStats, updateThreatFeed }) => {
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
     const [riskValue, setRiskValue] = useState(0);
-    const calculateRisk = (data) => {
-        if (!data) return 0;
 
-        // trusted domains should always be safe
-        if (data.reason === "trusted_domain") return 0;
-
-        const confidence = data.confidence_score ?? 0.5;
-
-        if (data.prediction === "phishing") {
-            return Math.round(confidence * 100);
-        }
-
-        return Math.round((1 - confidence) * 100);
-    };
 
     const handleScan = async (e) => {
         e.preventDefault();
         setLoading(true);
 
         try {
-            const response = await axios.post('/api/analyze-url', { url });
+            const response = await axios.post('/api/predict', { 
+                input_type: "url", 
+                data: url 
+            });
             const data = response.data;
-
+            console.log("API Result:", data);
             const risk = calculateRisk(data);
+            console.log("Risk Score:", risk);
 
             setResult(data);
             setRiskValue(risk);
@@ -40,12 +32,12 @@ const URLScanner = ({ updateStats, updateThreatFeed }) => {
             if (updateStats) updateStats(risk);
 
             if (updateThreatFeed) {
-                if (data.prediction === "phishing") {
-                    updateThreatFeed("Phishing URL blocked");
+                if (data.label === "phishing") {
+                    updateThreatFeed(`⚠️ Phishing detected: ${url}`);
                 } else if (risk >= 40) {
-                    updateThreatFeed("Suspicious URL detected");
+                    updateThreatFeed(`⚠️ Suspicious URL detected: ${url}`);
                 } else {
-                    updateThreatFeed("Benign URL confirmed");
+                    updateThreatFeed(`✅ Safe: ${url}`);
                 }
             }
 
@@ -119,7 +111,7 @@ const URLScanner = ({ updateStats, updateThreatFeed }) => {
                         </div>
 
                         <p className="text-sm text-slate-400 break-all bg-slate-900/50 p-2 rounded">
-                            {result.url}
+                            {url}
                         </p>
 
                         <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold ${
@@ -128,7 +120,7 @@ const URLScanner = ({ updateStats, updateThreatFeed }) => {
                             {riskValue >= 70 ? "PHISHING" : riskValue >= 30 ? "SUSPICIOUS" : "SAFE"}
                         </div>
 
-                        <RiskMeter riskValue={riskValue} />
+                        <RiskMeter riskValue={calculateRisk(result)} />
 
                         <div className="bg-slate-950 border border-slate-800 p-3 rounded-lg text-xs text-slate-400">
                             AI Analysis:

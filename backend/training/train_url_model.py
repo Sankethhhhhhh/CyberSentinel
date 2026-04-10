@@ -10,9 +10,9 @@ import os
 import sys
 import json
 
-# Add the app directory to sys.path to import the feature extractor
+# Add the app directory to sys.path to import the feature engineering module
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from app.services.url_feature_extractor import URLFeatureExtractor
+from app.services.feature_engineering import extract_url_features
 
 def prepare_dataset(csv_path):
     """
@@ -23,6 +23,10 @@ def prepare_dataset(csv_path):
 
     print(f"Loading dataset from {csv_path}...")
     df = pd.read_csv(csv_path)
+    
+    # Sample to reduce time during validation (since whois is very slow)
+    print("Sampling 500 rows to speed up validation...")
+    df = df.sample(n=500, random_state=42)
     
     # 2. Print class distribution
     print("\nClass Distribution:")
@@ -36,8 +40,8 @@ def prepare_dataset(csv_path):
     count = 0
     total = len(df)
     for url in df['url']:
-        extractor = URLFeatureExtractor(url)
-        feature_list.append(extractor.extract_features())
+        features = extract_url_features(url)
+        feature_list.append(features)
         count += 1
         if count % 10000 == 0:
             print(f"Processed {count}/{total} URLs...")

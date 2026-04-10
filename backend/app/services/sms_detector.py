@@ -1,59 +1,64 @@
-import torch
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import joblib
 import os
 import numpy as np
 
 class SMIShingDetector:
     def __init__(self):
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # Use local model path if it exists, otherwise fallback to HuggingFace
-        local_model_path = os.path.join(os.path.dirname(__file__), "../../models/sms_model")
-        if os.path.exists(local_model_path):
-            self.model_name = local_model_path
-            print(f"Loading local SMS model from '{self.model_name}'...")
+        # Paths to Scikit-learn artifacts
+        model_dir = os.path.join(os.path.dirname(__file__), "../../models/sms_model")
+        self.model_path = os.path.join(model_dir, "sms.model.pkl")
+        self.vectorizer_path = os.path.join(model_dir, "vectorizer.pkl")
+        
+        self.model = None
+        self.vectorizer = None
+        self.model_loaded = False
+
+        if os.path.exists(self.model_path) and os.path.exists(self.vectorizer_path):
+            try:
+                self.model = joblib.load(self.model_path)
+                self.vectorizer = joblib.load(self.vectorizer_path)
+                self.model_loaded = True
+                print(f"SMS Model & Vectorizer loaded from {model_dir}")
+            except Exception as e:
+                print(f"Error loading SMS model: {e}")
         else:
-            self.model_name = "distilbert-base-uncased"
-            print(f"Loading SMS model '{self.model_name}' from HuggingFace...")
-            
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-        # Using 2 labels for spam vs ham
-        self.model = AutoModelForSequenceClassification.from_pretrained(self.model_name, num_labels=2)
-        self.model.to(self.device)
-        self.model.eval()
-        self.model_loaded = True
+            print(f"SMS artifacts missing at {model_dir}")
 
     def preprocess(self, text: str):
-        # Basic preprocessing: lowercase and remove extra whitespace
-        text = text.strip()
-        return text
+        return text.strip().lower()
 
     def predict(self, text: str) -> dict:
-        # Rule-based override: OTP/verification messages are always treated as legitimate.
-        # This prevents false positives before running the ML model.
+        print("SMS INPUT:", text)
+        
+        if not self.model_loaded:
+            return {
+                "prediction": "safe",
+                "confidence_score": 0.5,
+                "error": "Model not loaded"
+            }
+
+        # Rule-based override: OTP/verification messages
         otp_keywords = ["otp", "one time password", "verification code", "one-time password"]
         if any(k in text.lower() for k in otp_keywords):
             return {
-                "message": text,
-                "prediction": "ham",
+                "prediction": "safe",
                 "confidence_score": 0.95,
-                "is_fine_tuned": self.model_loaded
+                "reason": "otp_override"
             }
 
         processed_text = self.preprocess(text)
-        inputs = self.tokenizer(processed_text, return_tensors="pt", truncation=True, padding=True, max_length=128).to(self.device)
         
-        with torch.no_grad():
-            outputs = self.model(**inputs)
-            probabilities = torch.nn.functional.softmax(outputs.logits, dim=-1)
-            confidence, predicted = torch.max(probabilities, dim=1)
-            
-            # Map predicted index back to label
-            label = "spam" if predicted.item() == 1 else "ham"
-            confidence = float(confidence.item())
+        # Vectorization & Inference
+        vectorized = self.vectorizer.transform([processed_text])
+        print("VECTOR SHAPE:", vectorized.shape)
+        
+        probs = self.model.predict_proba(vectorized)[0]
+        print("PROBS:", probs)
+        
+        confidence_score = float(max(probs))
+        prediction = "phishing" if probs[1] > 0.5 else "safe"
 
         return {
-            "message": text,
-            "prediction": label,
-            "confidence_score": confidence,
-            "is_fine_tuned": self.model_loaded
+            "prediction": prediction,
+            "confidence_score": confidence_score
         }

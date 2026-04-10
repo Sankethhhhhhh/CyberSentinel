@@ -2,24 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { MessageSquare, Shield, AlertTriangle } from 'lucide-react';
 import RiskMeter from './RiskMeter';
-
-const calculateRisk = (data) => {
-
-    if (!data) return 0;
-
-    // trusted domains must always be safe
-    if (data.reason === "trusted_domain") {
-        return 0;
-    }
-
-    const confidence = data.confidence_score ?? 0;
-
-    if (data.prediction === "spam") {
-        return Math.round(confidence * 100);
-    }
-
-    return Math.round((1 - confidence) * 100);
-};
+import { calculateRisk } from '../utils/risk';
 
 const SMSAnalyzer = ({ updateStats, updateThreatFeed }) => {
     const [message, setMessage] = useState('');
@@ -30,24 +13,37 @@ const SMSAnalyzer = ({ updateStats, updateThreatFeed }) => {
         e.preventDefault();
         setLoading(true);
         try {
-            const response = await axios.post('/api/analyze-sms', { message });
+            const response = await axios.post('/api/predict', { 
+                input_type: "sms", 
+                data: message 
+            });
+
             const data = response.data;
+            console.log("SMS RESPONSE:", data);
+
+            if (!data || !data.label) {
+                throw new Error("Invalid SMS response");
+            }
+
             setResult(data);
+            
+            const risk = calculateRisk(data);
+            console.log("Risk Score:", risk);
 
             if (updateStats) {
-                const risk = calculateRisk(data);
                 updateStats(risk);
 
                 if (updateThreatFeed) {
-                    if (data.prediction === "spam") {
-                        updateThreatFeed("Suspicious SMS detected");
+                    if (data.label === "phishing") {
+                        updateThreatFeed("⚠️ Suspicious SMS detected");
                     } else {
-                        updateThreatFeed("Legitimate SMS verified");
+                        updateThreatFeed("✅ Legitimate SMS verified");
                     }
                 }
             }
         } catch (error) {
             console.error('SMS analysis failed:', error);
+            alert("SMS analysis failed. See console for details.");
         } finally {
             setLoading(false);
         }
@@ -112,7 +108,7 @@ const SMSAnalyzer = ({ updateStats, updateThreatFeed }) => {
                             {riskValue >= 70 ? 'SMISHING / SPAM' : riskValue >= 30 ? 'SUSPICIOUS' : 'AUTHENTIC'}
                         </div>
 
-                        <RiskMeter riskValue={riskValue} />
+                        <RiskMeter riskValue={calculateRisk(result)} />
 
                         <div className="bg-slate-950 border border-slate-800 p-3 rounded-lg text-xs text-slate-400">
                             AI Analysis:

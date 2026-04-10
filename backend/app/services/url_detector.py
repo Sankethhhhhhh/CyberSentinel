@@ -96,10 +96,10 @@ class URLDetector:
         prediction = int(np.argmax(probabilities))
         confidence = float(np.max(probabilities))
 
-        label = "phishing" if prediction == 1 else "benign"
+        label = "phishing" if prediction == 1 else "safe"
 
         return {
             "url": url,
-            "prediction": label,
-            "confidence_score": confidence
+            "label": label,
+            "confidence": confidence
         }
