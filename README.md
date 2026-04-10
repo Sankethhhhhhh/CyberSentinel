@@ -63,6 +63,31 @@ npm run dev
 
 ---
 
+## Training Models
+
+Pre-trained models are included, so the project runs out-of-the-box.
+
+If you want to retrain the models:
+
+**Train URL Model**
+```bash
+python backend/training/train_url_model.py
+```
+
+**Train SMS Model**
+```bash
+python backend/training/train_sms_model.py
+```
+
+After training, the models will be saved in:
+`backend/models/`
+
+**Ensure the following files are present:**
+- `backend/models/url_models/best_url_model.pkl`
+- `backend/models/sms_model/best_sms_pipeline.pkl`
+
+---
+
 ## System Architecture
 
 ```text
