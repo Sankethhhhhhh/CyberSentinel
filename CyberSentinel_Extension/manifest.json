@@ -16,6 +16,7 @@
                 "<all_urls>"
             ],
             "js": [
+                "libs/jsQR.js",
                 "content.js"
             ]
         }
