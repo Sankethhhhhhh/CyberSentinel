@@ -1,3 +1,9 @@
+"""
+DEPRECATED: Use feature_engineering.extract_url_features() and URL_FEATURE_NAMES.
+
+This module is retained for reference only and is not used by the production pipeline.
+"""
+
 import re
 import tldextract
 from urllib.parse import urlparse

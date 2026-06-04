@@ -12,7 +12,7 @@ import json
 
 # Add the app directory to sys.path to import the feature engineering module
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from app.services.feature_engineering import extract_url_features
+from app.services.feature_engineering import URL_FEATURE_NAMES, extract_url_features
 
 def prepare_dataset(csv_path):
     """
@@ -46,7 +46,7 @@ def prepare_dataset(csv_path):
         if count % 10000 == 0:
             print(f"Processed {count}/{total} URLs...")
     
-    X = pd.DataFrame(feature_list)
+    X = pd.DataFrame(feature_list, columns=URL_FEATURE_NAMES)
     y = df['label_num']
     return X, y
 

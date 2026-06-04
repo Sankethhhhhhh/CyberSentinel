@@ -1,3 +1,10 @@
+"""
+DEPRECATED — not mounted on any FastAPI route.
+
+Production inference uses inference_module.py (POST /predict).
+This hybrid ML + FAISS + rules engine is kept for experimentation only.
+"""
+
 import os
 import joblib
 import numpy as np

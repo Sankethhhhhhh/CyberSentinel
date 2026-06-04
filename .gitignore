@@ -1,53 +1,28 @@
-# =========================
-# Python
-# =========================
+# Virtual environments
+env/
 venv/
+.venv/
+env
+# Node
+node_modules/
+
+# Cursor
+.cursor/
+
+# Local datasets
+data/
+
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
-*.log
 
-# =========================
-# Environment Variables
-# =========================
-.env
+# Temporary reports
+BUG_REPORT.md
+DEAD_CODE_REPORT.md
+FILE_CONNECTION_MAP.md
+FIX_PLAN.md
+PROJECT_DOCUMENTATION.md
+SMS_PIPELINE_RCA.md
+SYSTEM_AUDIT.md
+gitignore.txt
 
-# =========================
-# Node / Frontend
-# =========================
-node_modules/
-frontend/node_modules/
-dist/
-build/
-
-# =========================
-# ML Models (ignore all)
-# =========================
-backend/models/
-
-# Allow ONLY required models
-!backend/models/
-!backend/models/url_models/
-!backend/models/url_models/best_url_model.pkl
-
-!backend/models/sms_model/
-!backend/models/sms_model/best_sms_pipeline.pkl
-
-# =========================
-# Data / Datasets
-# =========================
-data/
-datasets/
-
-# =========================
-# OS / Misc
-# =========================
-.DS_Store
-Thumbs.db
-
-# =========================
-# Optional (logs / temp)
-# =========================
-*.tmp
-*.cache
+# Secrets

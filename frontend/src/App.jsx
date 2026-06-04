@@ -3,7 +3,8 @@ import URLScanner from "./components/URLScanner";
 import SMSAnalyzer from "./components/SMSAnalyzer";
 import QRScanner from "./components/QRScanner";
 import ThreatFeed from "./components/ThreatFeed";
-import { Shield, Activity, AlertTriangle, CheckCircle } from "lucide-react";
+import AttackStats from "./components/AttackStats";
+import { Shield } from "lucide-react";
 
 function App() {
 
@@ -49,17 +50,8 @@ function App() {
                 </h1>
             </div>
 
-            {/* STATS */}
-            <div className="grid grid-cols-4 gap-4 p-6">
-
-                <StatCard title="Total Scans" value={stats.total} icon={<Activity />} />
-
-                <StatCard title="Safe" value={stats.safe} icon={<CheckCircle />} color="text-green-400" />
-
-                <StatCard title="Suspicious" value={stats.suspicious} icon={<AlertTriangle />} color="text-yellow-400" />
-
-                <StatCard title="Phishing" value={stats.phishing} icon={<AlertTriangle />} color="text-red-400" />
-
+            <div className="px-6">
+                <AttackStats stats={stats} />
             </div>
 
             {/* THREAT FEED */}
@@ -79,23 +71,5 @@ function App() {
         </div>
     );
 }
-
-const StatCard = ({ title, value, icon, color = "text-cyan-400" }) => {
-
-    return (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
-
-            <div>
-                <p className="text-xs text-slate-400">{title}</p>
-                <p className="text-2xl font-bold">{value}</p>
-            </div>
-
-            <div className={color}>
-                {icon}
-            </div>
-
-        </div>
-    );
-};
 
 export default App;
