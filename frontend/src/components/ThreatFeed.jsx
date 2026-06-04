@@ -1,14 +1,4 @@
-import { Activity, AlertTriangle, Shield, ShieldAlert } from "lucide-react";
-
-// Icon + colour determined by the event message content
-const classify = (message) => {
-    const m = message.toLowerCase();
-    if (m.includes("phishing") || m.includes("malicious") || m.includes("blocked"))
-        return { color: "text-red-400", bg: "bg-red-500/10", icon: ShieldAlert };
-    if (m.includes("suspicious") || m.includes("flagged"))
-        return { color: "text-yellow-400", bg: "bg-yellow-500/10", icon: AlertTriangle };
-    return { color: "text-green-400", bg: "bg-green-500/10", icon: Shield };
-};
+import { AlertTriangle, Shield } from "lucide-react";
 
 const ThreatFeed = ({ events = [] }) => {
     const visibleEvents = events.slice(0, 5);

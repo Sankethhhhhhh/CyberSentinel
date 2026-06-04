@@ -13,6 +13,18 @@ logger = logging.getLogger(__name__)
 
 # --- URL FEATURE ENGINEERING ---
 
+
+def normalize_url(url: str) -> str:
+    """Canonicalize URL for consistent features and trusted-domain checks."""
+    url = str(url).strip()
+    if not url:
+        return url
+    parsed = urlparse(url)
+    if not parsed.scheme and not parsed.netloc:
+        parsed = urlparse(f"https://{url}")
+    return f"{parsed.scheme}://{parsed.netloc}{parsed.path.rstrip('/')}"
+
+
 def url_entropy(url: str) -> float:
     """Calculates the Shannon entropy of the URL string."""
     if not url:
@@ -50,14 +62,31 @@ def special_char_count(url: str) -> int:
     special_chars = set(['@', '?', '-', '=', '_', '%', '&', '/', '#'])
     return sum(1 for char in url if char in special_chars)
 
-def extract_url_features(url: str) -> dict:
+# Fixed column order for sklearn matrices (training + inference must match)
+URL_FEATURE_NAMES = [
+    "url_length",
+    "num_dots",
+    "num_special_chars",
+    "has_https",
+    "has_ip",
+    "num_subdomains",
+    "entropy",
+    "domain_age_days",
+]
+
+
+def extract_url_features(url: str, skip_whois: bool = False) -> dict:
     """
     Extracts numerical and categorical features from a URL for model training/inference.
-    
+
+    Args:
+        url: URL string to analyze.
+        skip_whois: If True, skips WHOIS lookup (recommended for low-latency inference).
+
     Returns:
-        dict: A dictionary of feature names and their corresponding values.
+        dict: Feature names and values in URL_FEATURE_NAMES order when iterated via URL_FEATURE_NAMES.
     """
-    url = str(url).strip()
+    url = normalize_url(str(url).strip())
     parsed_url = urlparse(url)
     extracted = tldextract.extract(url)
     
@@ -80,8 +109,10 @@ def extract_url_features(url: str) -> dict:
             num_subdomains = subdomains.count('.') + 1
             
     # Domain age
-    domain_age_days = 0 # 0 implies missing or error
+    domain_age_days = 0  # 0 implies missing or error
     try:
+        if skip_whois:
+            raise StopIteration()
         # Avoid WHOIS lookups for local IPs or empty domains
         if domain and not ip_present:
             # Set timeout to prevent hanging
@@ -97,22 +128,28 @@ def extract_url_features(url: str) -> dict:
                 # Attempt basic string parsing if it's not a datetime object
                 # This could be expanded based on whois string formats
                 pass
+    except StopIteration:
+        domain_age_days = 0
     except Exception as e:
         logger.debug(f"WHOIS lookup failed for {domain}: {e}")
         domain_age_days = 0
-        
+
     features = {
-        'url_length': url_length,
-        'num_dots': num_dots,
-        'num_special_chars': num_special_chars,
-        'has_https': is_https,
-        'has_ip': ip_present,
-        'num_subdomains': num_subdomains,
-        'entropy': entropy_val,
-        'domain_age_days': domain_age_days
+        "url_length": url_length,
+        "num_dots": num_dots,
+        "num_special_chars": num_special_chars,
+        "has_https": is_https,
+        "has_ip": ip_present,
+        "num_subdomains": num_subdomains,
+        "entropy": entropy_val,
+        "domain_age_days": domain_age_days,
     }
-    
     return features
+
+
+def url_features_to_array(features: dict) -> np.ndarray:
+    """Build a 1×N feature row using the canonical column order."""
+    return np.array([features[name] for name in URL_FEATURE_NAMES], dtype=float).reshape(1, -1)
 
 
 # --- SMS TEXT FEATURE ENGINEERING ---

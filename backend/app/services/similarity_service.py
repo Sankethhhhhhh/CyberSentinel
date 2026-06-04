@@ -1,3 +1,7 @@
+"""
+DEPRECATED — only imported by prediction_service.py (not in production path).
+"""
+
 import faiss
 import numpy as np
 import logging

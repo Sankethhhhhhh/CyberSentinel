@@ -148,6 +148,12 @@ if __name__ == "__main__":
     y = df['label'].values
 
     # -------- TRAIN --------
+    # Do NOT use best_sms_pipeline.pkl — that name is reserved for train_sms_model.py
+    # (sklearn Pipeline on raw text). This script saves a matrix-trained classifier only.
+    matrix_model_path = os.path.join(
+        os.path.dirname(__file__), "../models/sms_model/sms_matrix_classifier.pkl"
+    )
+    os.makedirs(os.path.dirname(matrix_model_path), exist_ok=True)
     best_model, comparison_df = train_and_evaluate_pipeline(
-        X, y, save_path="best_sms_pipeline.pkl"
+        X, y, save_path=matrix_model_path
     )
