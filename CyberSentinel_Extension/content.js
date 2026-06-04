@@ -1,6 +1,4 @@
-console.log("CyberSentinel loaded");
-console.log("jsQR type:", typeof jsQR);
-console.log("Images found:", document.querySelectorAll("img").length);
+// Console logs reduced to only threat notifications.
 
 const BACKEND_URL = "http://127.0.0.1:8000/predict";
 const MAX_LINKS = 15;
@@ -88,7 +86,7 @@ async function scanLinks() {
         ...new Map(selectedLinks.map(link => [link.href, link])).values()
     ];
 
-    console.log(`Scanning ${finalLinks.length} links...`);
+    // start scanning links
 
     for (const link of finalLinks) {
 
@@ -116,9 +114,8 @@ async function scanLinks() {
 
             const result = await response.json();
 
-            console.log("URL Analysis:", link.href, result);
-
             if (result.label !== "safe") {
+                console.log("URL threat detected", link.href);
                 highlightPhishing(link);
             }
 
@@ -179,7 +176,6 @@ async function scanImageForQR(img) {
         );
 
         if (qrCode) {
-            console.log("QR FOUND:", qrCode.data);
             return qrCode.data;
         }
 
@@ -194,7 +190,7 @@ async function scanImageForQR(img) {
 async function scanQRImages() {
     const images = Array.from(document.querySelectorAll("img"));
 
-    console.log(`Scanning ${images.length} images for QR codes...`);
+    // scanning images for QR codes
 
     for (const img of images) {
 
@@ -242,9 +238,8 @@ async function scanQRImages() {
 
             const result = await response.json();
 
-            console.log("QR Analysis:", result);
-
             if (result.label !== "safe") {
+                console.log("QR threat detected", qrData);
                 highlightQR(img);
             }
 
@@ -267,9 +262,8 @@ async function scanSMSContent() {
         try {
             const text = (el.innerText || "").trim();
 
-            if (!text || text.length < 30) continue;
 
-            console.log("Scanning SMS:", text);
+            if (!text || text.length < 30) continue;
 
             // avoid re-scanning the same element
             if (el.dataset.cybersentinelScanned) continue;
@@ -294,10 +288,8 @@ async function scanSMSContent() {
 
             const result = await response.json();
 
-            console.log("Result:", result);
-            console.log("SMS Analysis:", result);
-
             if (result.label !== "safe") {
+                console.log("SMS threat detected", el);
                 highlightElement(el);
             }
 
