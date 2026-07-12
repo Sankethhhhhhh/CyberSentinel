@@ -1,6 +1,7 @@
 import re
 import math
 import logging
+import socket
 from urllib.parse import urlparse
 import tldextract
 import whois
@@ -81,10 +82,10 @@ def extract_url_features(url: str) -> dict:
             
     # Domain age
     domain_age_days = 0 # 0 implies missing or error
-    try:
-        # Avoid WHOIS lookups for local IPs or empty domains
-        if domain and not ip_present:
-            # Set timeout to prevent hanging
+    if domain and not ip_present:
+        old_timeout = socket.getdefaulttimeout()
+        socket.setdefaulttimeout(5)
+        try:
             w = whois.whois(domain)
             creation_date = w.creation_date
             if type(creation_date) is list:
@@ -94,12 +95,12 @@ def extract_url_features(url: str) -> dict:
                 age = (datetime.now() - creation_date).days
                 domain_age_days = age if age >= 0 else 0
             elif creation_date and isinstance(creation_date, str):
-                # Attempt basic string parsing if it's not a datetime object
-                # This could be expanded based on whois string formats
                 pass
-    except Exception as e:
-        logger.debug(f"WHOIS lookup failed for {domain}: {e}")
-        domain_age_days = 0
+        except Exception as e:
+            logger.debug(f"WHOIS lookup failed for {domain}: {e}")
+            domain_age_days = 0
+        finally:
+            socket.setdefaulttimeout(old_timeout)
         
     features = {
         'url_length': url_length,
@@ -167,7 +168,11 @@ def keyword_features(text: str) -> dict:
         "winner", "prize", "action required", "locked", "confirm", 
         "limited time", "gift", "immediately", "kyc", "refund", "tax",
         "electricity", "sim", "delivery", "court", "notice", "transaction",
-        "billing"
+        "billing", "blocked", "deactivated", "restricted", "compromised",
+        "unusual", "expired", "identity", "secure", "review", "access",
+        "deadline", "violation", "breach", "aadhaar", "aadhar", "pan",
+        "debit", "credit", "card", "statement", "overdue", "pending",
+        "reactivate", "renew", "suspect", "terminated", "permanently"
     ]
     
     text_lower = text.lower()

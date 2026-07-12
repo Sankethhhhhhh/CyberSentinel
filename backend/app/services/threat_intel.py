@@ -1,4 +1,6 @@
 import os
+import hashlib
+import base64
 import requests
 from dotenv import load_dotenv
 
@@ -24,21 +26,62 @@ class ThreatIntelModule:
         return {"is_phishing": False}
 
     def check_virustotal(self, url):
-        """Query VirusTotal URL report."""
+        """Query VirusTotal URL report via v3 API (submit + poll)."""
         if not self.vt_key:
-            return {"ratio": 0.0}
+            return {"ratio": 0.0, "scanned": False, "total": 0}
         try:
             headers = {"x-apikey": self.vt_key}
-            params = {"url": url}
-            response = requests.get("https://www.virustotal.com/api/v3/urls", params=params, headers=headers, timeout=2.0)
-            if response.status_code == 200:
-                stats = response.json().get("data", {}).get("attributes", {}).get("last_analysis_stats", {})
-                malicious = stats.get("malicious", 0)
-                total = sum(stats.values()) if stats else 1
-                return {"ratio": malicious / total if total > 0 else 0.0}
+
+            # Step 1: Submit URL for analysis
+            submit_resp = requests.post(
+                "https://www.virustotal.com/api/v3/urls",
+                data={"url": url},
+                headers=headers,
+                timeout=5.0
+            )
+            if submit_resp.status_code != 200:
+                # Try GET by url_id as fallback (for previously scanned URLs)
+                url_id = base64.urlsafe_b64encode(
+                    hashlib.sha256(url.encode()).digest()
+                ).decode().rstrip("=")
+                report_resp = requests.get(
+                    f"https://www.virustotal.com/api/v3/urls/{url_id}",
+                    headers=headers,
+                    timeout=5.0
+                )
+                if report_resp.status_code != 200:
+                    return {"ratio": 0.0, "scanned": False, "total": 0}
+                data = report_resp.json()
+            else:
+                # Step 2: Poll analysis results
+                analysis_id = submit_resp.json()["data"]["id"]
+                analysis_resp = requests.get(
+                    f"https://www.virustotal.com/api/v3/analyses/{analysis_id}",
+                    headers=headers,
+                    timeout=5.0
+                )
+                if analysis_resp.status_code != 200:
+                    return {"ratio": 0.0, "scanned": False, "total": 0}
+                data = analysis_resp.json()
+
+            stats = data.get("data", {}).get("attributes", {}).get("stats", {})
+            malicious = stats.get("malicious", 0)
+            suspicious = stats.get("suspicious", 0)
+            total = sum(stats.values()) if stats else 0
+            if total == 0:
+                return {"ratio": 0.0, "scanned": False, "total": 0, "malicious": 0, "suspicious": 0}
+            flagged = malicious + suspicious
+            return {
+                "ratio": flagged / total,
+                "scanned": True,
+                "total": total,
+                "malicious": malicious,
+                "suspicious": suspicious
+            }
+
         except Exception:
             pass
-        return {"ratio": 0.0}
+        return {"ratio": 0.0, "scanned": False, "total": 0}
 
     def get_aggregate_score(self, url, ml_result):
         """Combine ML prediction with threat intelligence signals."""
@@ -76,5 +119,11 @@ class ThreatIntelModule:
             "confidence_score": ml_score,
             "phishtank_flag": pt_res["is_phishing"],
             "virustotal_ratio": vt_res["ratio"],
+            "virustotal": {
+                "scanned": vt_res.get("scanned", False),
+                "total": vt_res.get("total", 0),
+                "malicious": vt_res.get("malicious", 0),
+                "suspicious": vt_res.get("suspicious", 0)
+            },
             "final_risk_score": round(final_risk, 4)
         }

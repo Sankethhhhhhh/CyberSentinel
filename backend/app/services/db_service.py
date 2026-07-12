@@ -11,21 +11,21 @@ class DBService:
         self.client = None
         self.db = None
         self.predictions = None
-        self.feedback = None
-        
+        self.users = None
+         
         if self.uri:
             try:
                 self.client = MongoClient(self.uri, serverSelectionTimeoutMS=5000)
                 # Create database: cybersentinel
                 self.db = self.client.cybersentinel
-                # Create collections: predictions, feedback
+                # Create collections: predictions, users
                 self.predictions = self.db.predictions
-                self.feedback = self.db.feedback
-                
+                self.users = self.db.users
+                 
                 # Add Database Indexes for performance
                 self.predictions.create_index([("timestamp", -1)])
                 self.predictions.create_index([("input_type", 1)])
-                self.feedback.create_index([("timestamp", -1)])
+                self.users.create_index([("email", 1)], unique=True)
                 
                 logger.info("MongoDB connection established and indexes created.")
             except Exception as e:
@@ -33,7 +33,7 @@ class DBService:
         else:
             logger.warning("MONGO_URI not found in environment variables. Database logging disabled.")
 
-    def log_prediction(self, input_type, data, features, label, confidence):
+    def log_prediction(self, input_type, data, features, label, confidence, user_id="anonymous"):
         """
         Store prediction results in the database with fault tolerance.
         """
@@ -48,11 +48,12 @@ class DBService:
             feature_summary = {"count": len(features)}
 
         payload = {
+            "user_id": user_id,
             "input_type": input_type,
-            "data": data,
+            "input": data,
             "features": feature_summary,
-            "label": label,
-            "confidence": float(confidence),
+            "prediction": label,
+            "confidence_score": float(confidence),
             "timestamp": datetime.now(timezone.utc)
         }
         
@@ -60,24 +61,6 @@ class DBService:
             self.predictions.insert_one(payload)
         except Exception as e:
             logger.error(f"Fault Tolerance: Skipping DB log due to error: {e}")
-
-    def log_feedback(self, data, correct_label):
-        """
-        Store user feedback in the database with fault tolerance.
-        """
-        if self.feedback is None:
-            return
-
-        payload = {
-            "data": data,
-            "correct_label": correct_label,
-            "timestamp": datetime.now(timezone.utc)
-        }
-        
-        try:
-            self.feedback.insert_one(payload)
-        except Exception as e:
-            logger.error(f"Fault Tolerance: Skipping feedback log due to error: {e}")
 
 # Instantiate globally
 db_service = DBService()

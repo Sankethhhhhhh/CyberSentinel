@@ -1,41 +1,51 @@
 import io
 import os
-from PIL import Image
-from pyzbar.pyzbar import decode
-from app.services.url_detector import URLDetector
+import cv2
+import numpy as np
+from app.services.inference_module import inference_module
 
 class QRAnalyzer:
     def __init__(self):
-        self.url_detector = URLDetector()
+        self.qr_detector = cv2.QRCodeDetector()
 
     def decode_qr(self, image_bytes) -> str:
         try:
-            image = Image.open(io.BytesIO(image_bytes))
-            decoded_objs = decode(image)
-            if not decoded_objs:
+            nparr = np.frombuffer(image_bytes, np.uint8)
+            image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            
+            if image is None:
                 return None
-            return decoded_objs[0].data.decode('utf-8')
+            
+            decoded_text, points, straight_qr = self.qr_detector.detectAndDecode(image)
+            
+            if decoded_text is None or decoded_text == '':
+                return None
+            
+            return decoded_text
         except Exception as e:
             print(f"Error decoding QR: {e}")
             return None
 
     def analyze(self, image_bytes) -> dict:
-        # Step 1: Decode QR
         extracted_url = self.decode_qr(image_bytes)
-        if not extracted_url:
-            return {"error": "No QR code detected in image", "prediction": "unknown", "confidence_score": 0.0}
 
-        # Step 2: Extract URL and analyze it using the URL phishing model
-        url_prediction = self.url_detector.predict(extracted_url)
+        if not extracted_url:
+            return {
+                "error": "No QR code detected in image",
+                "prediction": "unknown",
+                "confidence_score": 0.0
+            }
+
+        result = inference_module.predict("url", extracted_url)
 
         return {
             "extracted_url": extracted_url,
-            "prediction": url_prediction.get("prediction", "unknown"),
-            "confidence_score": url_prediction.get("confidence_score", 0.0)
+            "prediction": result.get("label", "unknown"),
+            "confidence_score": result.get("confidence", 0.0)
         }
 
+
 if __name__ == "__main__":
-    # Internal test when run as a module
     import sys
     
     analyzer = QRAnalyzer()
