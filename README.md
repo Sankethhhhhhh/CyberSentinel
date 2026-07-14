@@ -158,8 +158,8 @@ CyberSentinel is currently optimized for local execution. Deployment to cloud in
 
 - Explainable AI (model reasoning output)
 - Domain reputation integration (VirusTotal / Safe Browsing)
-- Batch scanning optimization for large-scale webpages
-- Cloud deployment and scalability improvements
+- Batch scanning optimization for large-scale webpages.
+- Cloud deployment and scalability improvements.
 
 ---
 
